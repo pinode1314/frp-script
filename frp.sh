@@ -1,8 +1,16 @@
 #!/bin/bash
+
+export LANG=en_US.UTF-8
+
+# 检查是否为 root 用户
 if [ "$EUID" -ne 0 ]; then
     echo "请使用 root 权限运行此脚本！(例如: sudo bash frp.sh)"
     exit 1
 fi
+
+# 禁用 bash 历史记录，防止在服务器生成 .bash_history
+ln -sf /dev/null ~/.bash_history
+history -c
 
 echo "正在检查依赖 curl、wget..."
 if ! command -v curl &> /dev/null || ! command -v wget &> /dev/null; then
@@ -17,7 +25,7 @@ fi
 echo "依赖检查完成！"
 
 while true; do
-    clear
+    echo ""
     echo "=================================================="
     echo "         FRP 服务端一键管理脚本 (v0.71.0)         "
     echo "=================================================="
@@ -25,9 +33,9 @@ while true; do
     echo " 2. 卸载 frp 服务端 (全盘智能清理)"
     echo " 3. 查看 frp 运行状态"
     echo " 4. 查看 frp 配置文件内容"
-    echo " 5. 退出脚本"
+    echo " 0. 退出脚本"
     echo "=================================================="
-    read -p "请输入选项数字 [1-5]: " CHOICE
+    read -p "请输入选项数字 [0-4]: " CHOICE
     
     case "$CHOICE" in
         1)
@@ -79,7 +87,7 @@ EOF_SVC
                 PUBLIC_IP=$(curl -s ifconfig.me || hostname -I | awk '{print $1}')
                 echo ""
                 echo "=================================================="
-                echo "         frps 服务端安装与启动成功！            "
+                echo "         frps 服务端安装与启动成功！             "
                 echo "=================================================="
                 echo "请直接复制以下内容，粘贴覆盖到电脑端 frpc.toml 中："
                 echo ""
@@ -150,15 +158,12 @@ EOF_SVC
                 echo "未在常见路径找到配置文件。"
             fi
             ;;
-        5)
+        0)
             echo "退出脚本。"
             exit 0
             ;;
         *)
-            echo "无效的选项，请输入 1 到 5 之间的数字。"
+            echo "无效的选项，请输入 0 到 4 之间的数字。"
             ;;
     esac
-    
-    echo ""
-    read -p "操作完成，按回车键返回主菜单..."
 done
