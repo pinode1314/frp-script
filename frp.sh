@@ -2,9 +2,15 @@
 
 export LANG=en_US.UTF-8
 
+# 定义颜色变量
+RED='\033[1;31m'
+GREEN='\033[1;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # 恢复默认颜色
+
 # 检查是否为 root 用户
 if [ "$EUID" -ne 0 ]; then
-    echo "请使用 root 权限运行此脚本！(例如: sudo bash frp.sh)"
+    echo -e "${RED}请使用 root 权限运行此脚本！(例如: sudo bash frp.sh)${NC}"
     exit 1
 fi
 
@@ -42,8 +48,8 @@ while true; do
             if [ -f /usr/local/frps/frps ] || [ -f /etc/systemd/system/frps.service ]; then
                 echo ""
                 echo "=================================================="
-                echo " 检测到系统中已经安装有 frp 服务端！"
-                echo " 如需重新安装，请先选择选项 2 卸载后再试。"
+                echo -e "${RED}检测到系统中已经安装有 frp 服务端！${NC}"
+                echo -e "${RED}如需重新安装，请先选择选项 2 卸载后再试。${NC}"
                 echo "=================================================="
             else
                 echo "=== 开始安装 frp 服务端 ==="
@@ -87,7 +93,7 @@ EOF_SVC
                 PUBLIC_IP=$(curl -s ifconfig.me || hostname -I | awk '{print $1}')
                 echo ""
                 echo "=================================================="
-                echo "         frps 服务端安装与启动成功！             "
+                echo -e "${GREEN}         frps 服务端安装与启动成功！             ${NC}"
                 echo "=================================================="
                 echo "请直接复制以下内容，粘贴覆盖到电脑端 frpc.toml 中："
                 echo ""
@@ -131,7 +137,7 @@ EOF_SVC
                 FOUND_DIR=1
             fi
 
-            echo "=== frp 服务清理工作已完成！ ==="
+            echo -e "${GREEN}=== frp 服务清理工作已完成！ ===${NC}"
             ;;
         3)
             echo "=== 正在检查 frp 运行状态 ==="
@@ -140,7 +146,7 @@ EOF_SVC
             elif systemctl is-active --quiet frp_server; then
                 systemctl status frp_server
             else
-                systemctl status frps 2>/dev/null || echo "未找到运行中的 frps 服务。"
+                systemctl status frps 2>/dev/null || echo -e "${RED}未找到运行中的 frps 服务。${NC}"
             fi
             ;;
         4)
@@ -155,7 +161,7 @@ EOF_SVC
                 fi
             done
             if [ "$CONFIG_FOUND" -eq 0 ]; then
-                echo "未在常见路径找到配置文件。"
+                echo -e "${RED}未在常见路径找到配置文件。${NC}"
             fi
             ;;
         0)
@@ -163,7 +169,7 @@ EOF_SVC
             exit 0
             ;;
         *)
-            echo "无效的选项，请输入 0 到 4 之间的数字。"
+            echo -e "${RED}无效的选项，请输入 0 到 4 之间的数字。${NC}"
             ;;
     esac
 done
