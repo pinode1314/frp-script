@@ -97,9 +97,9 @@ EOF_SVC
                 echo "=================================================="
                 echo "请直接复制以下内容，粘贴覆盖到电脑端 frpc.toml 中："
                 echo ""
-                echo "serverAddr = \"${PUBLIC_IP}\""
-                echo "serverPort = ${RANDOM_BIND_PORT}"
-                echo "auth.token = \"${RANDOM_TOKEN}\""
+                printf "${GREEN}serverAddr = \"${PUBLIC_IP}\"\n${NC}"
+                printf "${GREEN}serverPort = ${RANDOM_BIND_PORT}\n${NC}"
+                printf "${GREEN}auth.token = \"${RANDOM_TOKEN}\"\n${NC}"
                 echo ""
                 echo "=================================================="
             fi
