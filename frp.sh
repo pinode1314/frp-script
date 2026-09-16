@@ -4,13 +4,25 @@ if [ "$EUID" -ne 0 ]; then
     exit 1
 fi
 
+echo "正在检查依赖 curl、wget..."
+if ! command -v curl &> /dev/null || ! command -v wget &> /dev/null; then
+    if [ -x "$(command -v apt)" ]; then
+        apt update -y && apt install -y curl wget
+    elif [ -x "$(command -v yum)" ]; then
+        yum install -y curl wget
+    elif [ -x "$(command -v dnf)" ]; then
+        dnf install -y curl wget
+    fi
+fi
+echo "依赖检查完成！"
+
 while true; do
     clear
     echo "=================================================="
     echo "         FRP 服务端一键管理脚本 (v0.71.0)         "
     echo "=================================================="
     echo " 1. 安装 frp 服务端"
-    echo " 2. 卸载 frp 服务端"
+    echo " 2. 卸载 frp 服务端 (全盘智能清理)"
     echo " 3. 查看 frp 运行状态"
     echo " 4. 查看 frp 配置文件内容"
     echo " 5. 退出脚本"
@@ -79,30 +91,63 @@ EOF_SVC
             fi
             ;;
         2)
-            echo "=== 正在卸载 frp 服务端 ==="
-            if [ -f /etc/systemd/system/frps.service ]; then
-                systemctl stop frps
-                systemctl disable frps
-                rm -f /etc/systemd/system/frps.service
-                systemctl daemon-reload
+            echo "=== 正在全面清理并卸载系统中的 frp 服务 ==="
+            
+            # 1. 停止并清理所有可能的 systemd 服务
+            for svc in frps frp_server frp; do
+                if systemctl list-unit-files | grep -q "^${svc}\.service"; then
+                    echo "发现后台服务: ${svc}，正在停止并移除..."
+                    systemctl stop "$svc" >/dev/null 2>&1
+                    systemctl disable "$svc" >/dev/null 2>&1
+                    rm -f "/etc/systemd/system/${svc}.service"
+                    rm -f "/lib/systemd/system/${svc}.service"
+                fi
+            done
+            systemctl daemon-reload
+            
+            # 2. 清理常见的主流安装目录
+            FOUND_DIR=0
+            for dir in /usr/local/frps /opt/frp /usr/bin/frp /root/frp; do
+                if [ -d "$dir" ] || [ -f "$dir/frps" ]; then
+                    echo "发现残留目录: $dir，正在彻底删除..."
+                    rm -rf "$dir"
+                    FOUND_DIR=1
+                fi
+            done
+            
+            # 3. 顺便通过系统命令查找残留的二进制文件
+            WHILE_FRPS=$(which frps 2>/dev/null)
+            if [ -n "$WHILE_FRPS" ]; then
+                echo "发现二进制文件: $WHILE_FRPS，正在清除..."
+                rm -f "$WHILE_FRPS"
+                FOUND_DIR=1
             fi
-            if [ -d /usr/local/frps ]; then
-                rm -rf /usr/local/frps
-                echo "=== frp 服务端已完全卸载！ ==="
-            else
-                echo "未检测到 /usr/local/frps 目录，系统中可能没有安装 frp。"
-            fi
+
+            echo "=== frp 服务清理工作已完成！ ==="
             ;;
         3)
             echo "=== 正在检查 frp 运行状态 ==="
-            systemctl status frps
+            if systemctl is-active --quiet frps; then
+                systemctl status frps
+            elif systemctl is-active --quiet frp_server; then
+                systemctl status frp_server
+            else
+                systemctl status frps 2>/dev/null || echo "未找到运行中的 frps 服务。"
+            fi
             ;;
         4)
-            echo "=== frp 配置文件内容 (frps.toml) ==="
-            if [ -f /usr/local/frps/frps.toml ]; then
-                cat /usr/local/frps/frps.toml
-            else
-                echo "未找到配置文件，frp 可能尚未安装。"
+            echo "=== 查找 frp 配置文件内容 ==="
+            CONFIG_FOUND=0
+            for cfg in /usr/local/frps/frps.toml /opt/frp/frps.toml /etc/frp/frps.ini /etc/frp/frps.toml; do
+                if [ -f "$cfg" ]; then
+                    echo "找到配置文件: $cfg"
+                    cat "$cfg"
+                    CONFIG_FOUND=1
+                    break
+                fi
+            done
+            if [ "$CONFIG_FOUND" -eq 0 ]; then
+                echo "未在常见路径找到配置文件。"
             fi
             ;;
         5)
