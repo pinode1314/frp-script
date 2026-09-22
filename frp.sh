@@ -18,18 +18,6 @@ fi
 ln -sf /dev/null ~/.bash_history
 history -c
 
-echo "正在检查依赖 curl、wget..."
-if ! command -v curl &> /dev/null || ! command -v wget &> /dev/null; then
-    if [ -x "$(command -v apt)" ]; then
-        apt update -y && apt install -y curl wget
-    elif [ -x "$(command -v yum)" ]; then
-        yum install -y curl wget
-    elif [ -x "$(command -v dnf)" ]; then
-        dnf install -y curl wget
-    fi
-fi
-echo "依赖检查完成！"
-
 while true; do
     echo ""
     echo "=================================================="
