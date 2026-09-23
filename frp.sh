@@ -18,13 +18,25 @@ fi
 ln -sf /dev/null ~/.bash_history
 history -c
 
+echo "正在检查依赖 curl、wget..."
+if ! command -v curl &> /dev/null || ! command -v wget &> /dev/null; then
+    if [ -x "$(command -v apt)" ]; then
+        apt update -y && apt install -y curl wget
+    elif [ -x "$(command -v yum)" ]; then
+        yum install -y curl wget
+    elif [ -x "$(command -v dnf)" ]; then
+        dnf install -y curl wget
+    fi
+fi
+echo "依赖检查完成！"
+
 while true; do
     echo ""
     echo "=================================================="
     echo "         FRP 服务端一键管理脚本 (v0.71.0)         "
     echo "=================================================="
     echo " 1. 安装 frp 服务端"
-    echo " 2. 卸载、停止、重启 frp 服务端"
+    echo " 2. 卸载 frp 服务端 (全盘智能清理)"
     echo " 3. 查看 frp 运行状态"
     echo " 4. 查看 frp 配置文件内容"
     echo " 0. 退出脚本"
@@ -37,7 +49,7 @@ while true; do
                 echo ""
                 echo "=================================================="
                 printf "${RED}检测到系统中已经安装有 frp 服务端！\n${NC}"
-                printf "${RED}如需重新安装，请先选择选项 2 进入子菜单卸载后再试。\n${NC}"
+                printf "${RED}如需重新安装，请先选择选项 2 卸载后再试。\n${NC}"
                 echo "=================================================="
             else
                 echo "=== 开始安装 frp 服务端 ==="
@@ -93,94 +105,39 @@ EOF_SVC
             fi
             ;;
         2)
-            while true; do
-                echo ""
-                echo "=================================================="
-                echo "         FRP 服务端管理子菜单                     "
-                echo "=================================================="
-                echo " 1. 卸载 frp"
-                echo " 2. 停止 frp 运行"
-                echo " 3. 重启 frp"
-                echo " 0. 返回上一级菜单"
-                echo "=================================================="
-                read -p "请输入选项数字 [0-3]: " SUB_CHOICE
-
-                case "$SUB_CHOICE" in
-                    1)
-                        echo "=== 正在全面清理并卸载系统中的 frp 服务 ==="
-                        
-                        # 1. 停止并清理所有可能的 systemd 服务
-                        for svc in frps frp_server frp; do
-                            if systemctl list-unit-files | grep -q "^${svc}\.service"; then
-                                echo "发现后台服务: ${svc}，正在停止并移除..."
-                                systemctl stop "$svc" >/dev/null 2>&1
-                                systemctl disable "$svc" >/dev/null 2>&1
-                                rm -f "/etc/systemd/system/${svc}.service"
-                                rm -f "/lib/systemd/system/${svc}.service"
-                            fi
-                        done
-                        systemctl daemon-reload
-                        
-                        # 2. 清理常见的主流安装目录
-                        FOUND_DIR=0
-                        for dir in /usr/local/frps /opt/frp /usr/bin/frp /root/frp; do
-                            if [ -d "$dir" ] || [ -f "$dir/frps" ]; then
-                                echo "发现残留目录: $dir，正在彻底删除..."
-                                rm -rf "$dir"
-                                FOUND_DIR=1
-                            fi
-                        done
-                        
-                        # 3. 顺便通过系统命令查找残留的二进制文件
-                        WHILE_FRPS=$(which frps 2>/dev/null)
-                        if [ -n "$WHILE_FRPS" ]; then
-                            echo "发现二进制文件: $WHILE_FRPS，正在清除..."
-                            rm -f "$WHILE_FRPS"
-                            FOUND_DIR=1
-                        fi
-
-                        printf "${GREEN}=== frp 服务清理工作已完成！ ===\n${NC}"
-                        ;;
-                    2)
-                        echo "=== 正在停止 frp 运行 ==="
-                        STOPPED=0
-                        for svc in frps frp_server frp; do
-                            if systemctl list-unit-files | grep -q "^${svc}\.service"; then
-                                systemctl stop "$svc" >/dev/null 2>&1
-                                echo "已停止服务: ${svc}"
-                                STOPPED=1
-                            fi
-                        done
-                        if [ "$STOPPED" -eq 0 ]; then
-                            printf "${RED}未发现任何运行中的 frp systemd 服务。\n${NC}"
-                        else
-                            printf "${GREEN}=== frp 服务已停止！ ===\n${NC}"
-                        fi
-                        ;;
-                    3)
-                        echo "=== 正在重启 frp ==="
-                        RESTARTED=0
-                        for svc in frps frp_server frp; do
-                            if systemctl list-unit-files | grep -q "^${svc}\.service"; then
-                                systemctl restart "$svc" >/dev/null 2>&1
-                                echo "已重启服务: ${svc}"
-                                RESTARTED=1
-                            fi
-                        done
-                        if [ "$RESTARTED" -eq 0 ]; then
-                            printf "${RED}未发现可重启的 frp systemd 服务。\n${NC}"
-                        else
-                            printf "${GREEN}=== frp 服务已重启！ ===\n${NC}"
-                        fi
-                        ;;
-                    0)
-                        break
-                        ;;
-                    *)
-                        printf "${RED}无效的选项，请输入 0 到 3 之间的数字。\n${NC}"
-                        ;;
-                esac
+            echo "=== 正在全面清理并卸载系统中的 frp 服务 ==="
+            
+            # 1. 停止并清理所有可能的 systemd 服务
+            for svc in frps frp_server frp; do
+                if systemctl list-unit-files | grep -q "^${svc}\.service"; then
+                    echo "发现后台服务: ${svc}，正在停止并移除..."
+                    systemctl stop "$svc" >/dev/null 2>&1
+                    systemctl disable "$svc" >/dev/null 2>&1
+                    rm -f "/etc/systemd/system/${svc}.service"
+                    rm -f "/lib/systemd/system/${svc}.service"
+                fi
             done
+            systemctl daemon-reload
+            
+            # 2. 清理常见的主流安装目录
+            FOUND_DIR=0
+            for dir in /usr/local/frps /opt/frp /usr/bin/frp /root/frp; do
+                if [ -d "$dir" ] || [ -f "$dir/frps" ]; then
+                    echo "发现残留目录: $dir，正在彻底删除..."
+                    rm -rf "$dir"
+                    FOUND_DIR=1
+                fi
+            done
+            
+            # 3. 顺便通过系统命令查找残留的二进制文件
+            WHILE_FRPS=$(which frps 2>/dev/null)
+            if [ -n "$WHILE_FRPS" ]; then
+                echo "发现二进制文件: $WHILE_FRPS，正在清除..."
+                rm -f "$WHILE_FRPS"
+                FOUND_DIR=1
+            fi
+
+            printf "${GREEN}=== frp 服务清理工作已完成！ ===\n${NC}"
             ;;
         3)
             echo "=== 正在检查 frp 运行状态 ==="
