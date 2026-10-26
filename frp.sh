@@ -1,23 +1,18 @@
 #!/bin/bash
-
 export LANG=en_US.UTF-8
-
 # 定义颜色变量
 RED='\033[1;31m'
 GREEN='\033[1;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # 恢复默认颜色
-
 # 检查是否为 root 用户
 if [ "$EUID" -ne 0 ]; then
     printf "${RED}请使用 root 权限运行此脚本！(例如: sudo bash frp.sh)\n${NC}"
     exit 1
 fi
-
 # 禁用 bash 历史记录，防止在服务器生成 .bash_history
 ln -sf /dev/null ~/.bash_history
 history -c
-
 echo "正在检查依赖 curl、wget..."
 if ! command -v curl &> /dev/null || ! command -v wget &> /dev/null; then
     if [ -x "$(command -v apt)" ]; then
@@ -29,7 +24,6 @@ if ! command -v curl &> /dev/null || ! command -v wget &> /dev/null; then
     fi
 fi
 echo "依赖检查完成！"
-
 while true; do
     echo ""
     echo "=================================================="
@@ -136,7 +130,6 @@ EOF_SVC
                 rm -f "$WHILE_FRPS"
                 FOUND_DIR=1
             fi
-
             printf "${GREEN}=== frp 服务清理工作已完成！ ===\n${NC}"
             ;;
         3)
@@ -150,18 +143,20 @@ EOF_SVC
             fi
             ;;
         4)
-            echo "=== 查找 frp 配置文件内容 ==="
-            CONFIG_FOUND=0
-            for cfg in /usr/local/frps/frps.toml /opt/frp/frps.toml /etc/frp/frps.ini /etc/frp/frps.toml; do
-                if [ -f "$cfg" ]; then
-                    echo "找到配置文件: $cfg"
-                    cat "$cfg"
-                    CONFIG_FOUND=1
-                    break
-                fi
-            done
-            if [ "$CONFIG_FOUND" -eq 0 ]; then
-                printf "${RED}未在常见路径找到配置文件。\n${NC}"
+            echo "=== 客户端连接配置（直接复制到frpc.toml） ==="
+            CONFIG_FILE="/usr/local/frps/frps.toml"
+            if [ -f "${CONFIG_FILE}" ]; then
+                # 从frps.toml读取参数
+                BIND_PORT=$(grep '^bindPort' ${CONFIG_FILE} | awk '{print $3}')
+                TOKEN=$(grep '^auth.token' ${CONFIG_FILE} | cut -d'"' -f2)
+                PUBLIC_IP=$(curl -s ifconfig.me || hostname -I | awk '{print $1}')
+                echo ""
+                printf "${GREEN}serverAddr = \"${PUBLIC_IP}\"\n${NC}"
+                printf "${GREEN}serverPort = ${BIND_PORT}\n${NC}"
+                printf "${GREEN}auth.token = \"${TOKEN}\"\n${NC}"
+                echo ""
+            else
+                printf "${RED}未找到 /usr/local/frps/frps.toml，请先安装frp服务端！\n${NC}"
             fi
             ;;
         0)
